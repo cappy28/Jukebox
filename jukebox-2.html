@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jukebox — GMCbla</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#1a1209; --bg2:#241a0d; --wood:#5c3a1e; --wood-dark:#3b2410;
+  --wood-light:#7a4e28; --stone:#7a7a7a; --stone-dark:#4a4a4a;
+  --red:#c0392b; --red-glow:#ff4d3d; --gold:#f5c518; --green:#39d353;
+  --text:#f0e6c8; --dim:#a89070;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'VT323',monospace;font-size:20px;min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999;}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:4px solid var(--wood);background:var(--bg2);gap:16px;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:14px;}
+.logo img{width:52px;height:52px;image-rendering:pixelated;}
+.logo h1{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--gold);text-shadow:3px 3px 0 rgba(0,0,0,0.5);line-height:1.5;}
+.logo h1 span{display:block;font-size:7px;color:var(--dim);margin-top:4px;}
+.header-right{text-align:right;font-size:15px;color:var(--dim);line-height:1.5;}
+.header-right strong{color:var(--green);}
+
+/* NOW PLAYING */
+#now-playing{background:var(--wood-dark);border-bottom:3px solid var(--red);padding:9px 28px;display:flex;align-items:center;gap:14px;min-height:50px;}
+.np-label{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--red-glow);white-space:nowrap;flex-shrink:0;}
+.np-disc{width:26px;height:26px;border-radius:50%;border:3px solid #222;flex-shrink:0;transition:background .3s;}
+.np-disc.spin{animation:dspin 1.5s linear infinite;}
+@keyframes dspin{to{transform:rotate(360deg);}}
+.np-track{font-size:21px;color:var(--text);overflow:hidden;white-space:nowrap;flex:1;}
+.np-marquee{display:inline-block;}
+.np-marquee.running{animation:marquee 20s linear infinite;}
+@keyframes marquee{0%{transform:translateX(40vw);}100%{transform:translateX(-100%);}}
+.np-cmd{font-size:16px;color:var(--dim);white-space:nowrap;flex-shrink:0;}
+.np-cmd code{background:rgba(0,0,0,.4);padding:2px 7px;color:var(--green);border:1px solid var(--green);}
+
+/* VOCAL STATUS */
+#vocal-bar{background:#1a120f;border-bottom:3px solid var(--wood-dark);padding:8px 28px;display:flex;align-items:center;gap:20px;min-height:44px;flex-wrap:wrap;}
+.vocal-label{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);white-space:nowrap;}
+.vocal-channels{display:flex;gap:12px;flex-wrap:wrap;flex:1;}
+.vocal-ch{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.04);border:1px solid var(--wood-dark);padding:4px 10px;font-size:16px;}
+.vocal-ch .ch-name{color:var(--dim);}
+.vocal-ch .ch-members{color:var(--text);}
+.vocal-ch.has-members{border-color:var(--wood);background:rgba(92,58,30,.2);}
+.vocal-ch.lone{border-color:var(--red-glow);background:rgba(192,57,43,.15);animation:pulse-border 1.5s ease-in-out infinite;}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(255,77,61,.3);}50%{box-shadow:0 0 0 4px rgba(255,77,61,.1);}}
+.ch-play-btn{font-family:'VT323',monospace;font-size:16px;background:var(--wood);color:var(--text);border:1px solid var(--wood-dark);padding:1px 8px;cursor:pointer;margin-left:4px;}
+.ch-play-btn:hover{background:var(--wood-light);}
+#vocal-status{font-size:16px;color:var(--dim);}
+
+/* TABS */
+.tabs{display:flex;border-bottom:3px solid var(--wood-dark);background:var(--bg2);}
+.tab{font-family:'Press Start 2P',monospace;font-size:8px;padding:12px 22px;cursor:pointer;color:var(--dim);border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-3px;transition:color .1s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* CONTROLS */
+.controls-bar{display:flex;gap:10px;padding:14px 28px;background:var(--bg2);border-bottom:3px solid var(--wood-dark);flex-wrap:wrap;align-items:center;}
+.search-wrap{display:flex;flex:1;min-width:200px;}
+input[type=text]{flex:1;font-family:'VT323',monospace;font-size:20px;background:#0d0a06;color:var(--text);border:3px solid var(--wood-dark);border-right:none;padding:4px 12px;outline:none;}
+input[type=text]:focus{border-color:var(--gold);}
+input[type=text]::placeholder{color:var(--dim);}
+.btn{font-family:'VT323',monospace;font-size:20px;background:var(--wood);color:var(--text);border:3px solid var(--wood-dark);padding:4px 14px;cursor:pointer;position:relative;}
+.btn::after{content:'';position:absolute;bottom:-4px;right:-4px;width:100%;height:100%;background:var(--wood-dark);z-index:-1;}
+.btn:hover{background:var(--wood-light);transform:translate(-1px,-1px);}
+.btn.green{background:#1a5c1a;border-color:#0d3b0d;}
+.btn.green::after{background:#0d3b0d;}
+.btn.green:hover{background:#247724;}
+.filter-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.fbtn{font-family:'VT323',monospace;font-size:18px;background:transparent;color:var(--dim);border:2px solid var(--stone-dark);padding:3px 11px;cursor:pointer;}
+.fbtn:hover,.fbtn.active{background:var(--stone-dark);color:var(--text);border-color:var(--stone);}
+.fbtn.active{color:var(--gold);border-color:var(--gold);}
+
+/* GRID */
+.grid-wrap{padding:22px 28px;}
+.grid-title{font-family:'Press Start 2P',monospace;font-size:7px;color:var(--dim);margin-bottom:14px;}
+.grid-title span{color:var(--gold);}
+#track-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
+
+/* CARD */
+.track-card{background:var(--bg2);border:3px solid var(--wood-dark);position:relative;cursor:pointer;transition:transform .1s,border-color .1s;overflow:hidden;}
+.card-shadow{position:absolute;bottom:-3px;right:-3px;width:100%;height:100%;background:var(--wood-dark);z-index:-1;transition:bottom .1s,right .1s;}
+.track-card:hover{transform:translate(-2px,-2px);border-color:var(--gold);}
+.track-card:hover .card-shadow{bottom:-5px;right:-5px;}
+.track-card.playing{border-color:var(--red-glow);box-shadow:0 0 10px rgba(255,77,61,.25);}
+.card-disc{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#0d0a06;position:relative;}
+.disc-art{width:70%;height:70%;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;}
+.disc-art.spin{animation:dspin 2s linear infinite;}
+.disc-outer{position:absolute;inset:0;border-radius:50%;border:6px solid #111;}
+.disc-grooves{position:absolute;inset:10%;border-radius:50%;background:radial-gradient(circle at center,transparent 15%,rgba(255,255,255,.04) 16%,rgba(255,255,255,.04) 18%,transparent 19%,rgba(255,255,255,.04) 28%,rgba(255,255,255,.04) 30%,transparent 31%,rgba(255,255,255,.04) 40%,rgba(255,255,255,.04) 42%,transparent 43%);}
+.disc-center{width:22%;height:22%;border-radius:50%;background:#222;border:3px solid #111;z-index:2;}
+.disc-label-txt{position:absolute;inset:25%;border-radius:50%;z-index:1;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;font-size:6px;color:rgba(255,255,255,.6);text-align:center;padding:3px;line-height:1.3;}
+.disc-num{position:absolute;bottom:7px;right:9px;font-family:'Press Start 2P',monospace;font-size:6px;color:var(--dim);opacity:.6;}
+.card-info{padding:10px 13px 13px;border-top:3px solid var(--wood-dark);}
+.card-title{font-size:19px;color:var(--text);line-height:1.3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.track-card:hover .card-title{white-space:normal;}
+.card-source{font-size:15px;color:var(--dim);margin-bottom:6px;}
+.card-tags{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;}
+.tag{font-size:13px;padding:1px 6px;border:1px solid;}
+.tag.minecraft{color:#7dc560;border-color:#7dc560;}.tag.lofi{color:#a78bfa;border-color:#a78bfa;}.tag.epic{color:var(--gold);border-color:var(--gold);}.tag.chill{color:#67e8f9;border-color:#67e8f9;}.tag.boss{color:var(--red-glow);border-color:var(--red-glow);}.tag.nostalgic{color:#f9a8d4;border-color:#f9a8d4;}.tag.ambiant{color:#86efac;border-color:#86efac;}.tag.intense{color:#fb923c;border-color:#fb923c;}.tag.favorite{color:var(--gold);border-color:var(--gold);}
+.card-actions{display:flex;gap:6px;}
+.card-play{flex:1;font-family:'VT323',monospace;font-size:18px;background:var(--wood);color:var(--text);border:2px solid var(--wood-dark);padding:3px 0;cursor:pointer;text-align:center;}
+.card-play:hover{background:var(--wood-light);}
+.track-card.playing .card-play{background:var(--red);}
+.card-copy{font-family:'VT323',monospace;font-size:16px;background:transparent;color:var(--dim);border:2px solid var(--stone-dark);padding:3px 9px;cursor:pointer;}
+.card-copy:hover,.card-copy.copied{border-color:var(--green);color:var(--green);}
+
+/* SEARCH TAB */
+#search-tab .search-hero{text-align:center;padding:40px 28px 20px;}
+#search-tab .search-hero h2{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--gold);margin-bottom:12px;}
+#search-tab .search-hero p{font-size:18px;color:var(--dim);margin-bottom:24px;}
+.big-search{display:flex;max-width:600px;margin:0 auto;}
+.big-search input{flex:1;font-family:'VT323',monospace;font-size:24px;background:#0d0a06;color:var(--text);border:3px solid var(--wood-dark);border-right:none;padding:8px 16px;outline:none;}
+.big-search input:focus{border-color:var(--gold);}
+.big-search button{font-family:'VT323',monospace;font-size:22px;background:var(--red);color:#fff;border:3px solid #8b1a12;padding:6px 20px;cursor:pointer;}
+.big-search button:hover{background:var(--red-glow);}
+.search-result{max-width:600px;margin:20px auto;padding:0 28px;}
+.search-result .result-card{background:var(--bg2);border:3px solid var(--wood-dark);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.result-card .r-title{font-size:20px;color:var(--text);}
+.result-card .r-sub{font-size:15px;color:var(--dim);}
+.result-card .r-play{font-family:'VT323',monospace;font-size:18px;background:var(--wood);color:var(--text);border:2px solid var(--wood-dark);padding:3px 14px;cursor:pointer;white-space:nowrap;}
+.result-card .r-play:hover{background:var(--wood-light);}
+.channel-select{max-width:600px;margin:10px auto 0;padding:0 28px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.channel-select label{font-size:17px;color:var(--dim);}
+.channel-select select{font-family:'VT323',monospace;font-size:18px;background:#0d0a06;color:var(--text);border:2px solid var(--wood-dark);padding:4px 10px;outline:none;}
+
+/* EMPTY / TOAST / FOOTER */
+#empty{display:none;text-align:center;padding:40px;color:var(--dim);font-size:21px;}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--wood-dark);border:3px solid var(--gold);padding:9px 22px;font-size:19px;color:var(--gold);transition:transform .2s;z-index:10000;white-space:nowrap;pointer-events:none;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+footer{border-top:3px solid var(--wood-dark);padding:18px 28px;text-align:center;font-size:15px;color:var(--dim);background:var(--bg2);}
+footer a{color:var(--dim);}
+@media(max-width:600px){header{flex-direction:column;align-items:flex-start;}.grid-wrap{padding:14px;}.controls-bar{padding:10px 14px;}#track-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="data:image/png;base64,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" alt="Jukebox">
+    <h1>JUKEBOX<span>GMCbla Music Library</span></h1>
+  </div>
+  <div class="header-right">
+    Jockie : <strong>m!play</strong> · <strong>m!skip</strong> · <strong>m!stop</strong> · <strong>m!queue</strong><br>
+    <span id="bot-status" style="font-size:14px;">● Connexion...</span>
+  </div>
+</header>
+
+<div id="now-playing">
+  <span class="np-label">▶ EN LECTURE</span>
+  <div class="np-disc" id="np-disc" style="background:#333"></div>
+  <div class="np-track"><span class="np-marquee" id="np-title">Sélectionne une musique...</span></div>
+  <div class="np-cmd" id="np-cmd"></div>
+</div>
+
+<div id="vocal-bar">
+  <span class="vocal-label">🎙 VOCAUX</span>
+  <div class="vocal-channels" id="vocal-channels">
+    <span id="vocal-status">Chargement...</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('minecraft',this)">🎮 Minecraft</button>
+  <button class="tab" onclick="switchTab('search',this)">🔍 Recherche libre</button>
+</div>
+
+<!-- TAB MINECRAFT -->
+<div id="tab-minecraft">
+  <div class="controls-bar">
+    <div class="search-wrap">
+      <input id="mc-search" type="text" placeholder="Filtrer les musiques..." autocomplete="off">
+      <button class="btn" onclick="clearMcSearch()">✕</button>
+    </div>
+    <div class="filter-btns" id="filter-btns">
+      <button class="fbtn active" data-tag="all" onclick="filterTag(this)">Tout</button>
+      <button class="fbtn" data-tag="minecraft" onclick="filterTag(this)">Minecraft</button>
+      <button class="fbtn" data-tag="lofi" onclick="filterTag(this)">Lo-Fi</button>
+      <button class="fbtn" data-tag="chill" onclick="filterTag(this)">Chill</button>
+      <button class="fbtn" data-tag="epic" onclick="filterTag(this)">Epic</button>
+      <button class="fbtn" data-tag="boss" onclick="filterTag(this)">Boss</button>
+      <button class="fbtn" data-tag="nostalgic" onclick="filterTag(this)">Nostalgic</button>
+      <button class="fbtn" data-tag="favorite" onclick="filterTag(this)">⭐ Favori</button>
+    </div>
+  </div>
+  <div class="grid-wrap">
+    <div class="grid-title">CATALOGUE — <span id="count">0</span> MUSIQUES</div>
+    <div id="track-grid"></div>
+    <div id="empty">📀 Aucune musique trouvée.</div>
+  </div>
+</div>
+
+<!-- TAB RECHERCHE LIBRE -->
+<div id="tab-search" style="display:none;">
+  <div id="search-tab">
+    <div class="search-hero">
+      <h2>RECHERCHE LIBRE</h2>
+      <p>Tape n'importe quel titre, artiste ou lien YouTube/Spotify.<br>
+      Callogs enverra <strong>m!play</strong> + <strong>m!skip</strong> dans ton salon vocal.</p>
+      <div class="big-search">
+        <input id="free-search-input" type="text" placeholder="Ex: Stromae, ACDC, lien YT..." onkeydown="if(event.key==='Enter')doFreeSearch()">
+        <button onclick="doFreeSearch()">▶ JOUER</button>
+      </div>
+    </div>
+    <div class="channel-select">
+      <label>Salon vocal :</label>
+      <select id="channel-select"><option value="">-- Choisir --</option></select>
+    </div>
+    <div class="search-result" id="search-result"></div>
+  </div>
+</div>
+
+<footer>
+  Jukebox GMCbla · <a href="https://www.jockiemusic.com/commands" target="_blank">Toutes les commandes Jockie ↗</a>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// CONFIG — à remplir après déploiement de l'API
+// ═══════════════════════════════════════════════════
+const API_URL  = 'http://93.115.101.151:15802'; // URL publique de l'API srv 2
+const API_KEY  = 'callogs_gmcbla_2026_xK9p';               // même valeur que API_SECRET dans .env
+
+// ═══════════════════════════════════════════════════
+// CATALOGUE MINECRAFT
+// ═══════════════════════════════════════════════════
+const TRACKS = [
+  { title:"Dancing to Driftveil City", query:"Dancing to Driftveil City", source:"Pokémon BW · The Meek Guy", tags:["favorite","chill","nostalgic"], color:"#27ae60", label:"♫" },
+  { title:"Sweden", query:"Sweden C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill","nostalgic","favorite"], color:"#3498db", label:"C418" },
+  { title:"Wet Hands", query:"Wet Hands C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill","ambiant"], color:"#1abc9c", label:"C418" },
+  { title:"Living Mice", query:"Living Mice C418", source:"Minecraft OST · C418", tags:["minecraft","nostalgic"], color:"#9b59b6", label:"C418" },
+  { title:"Minecraft (Main Theme)", query:"Minecraft Main Theme C418", source:"Minecraft OST · C418", tags:["minecraft","epic","nostalgic","favorite"], color:"#e67e22", label:"C418" },
+  { title:"Subwoofer Lullaby", query:"Subwoofer Lullaby C418", source:"Minecraft OST · C418", tags:["minecraft","chill","ambiant"], color:"#2ecc71", label:"C418" },
+  { title:"Pigstep", query:"Pigstep Lena Raine Minecraft", source:"Minecraft Nether · Lena Raine", tags:["minecraft","intense","epic","boss"], color:"#e74c3c", label:"LR" },
+  { title:"Otherside", query:"Otherside Lena Raine Minecraft", source:"Minecraft C&C · Lena Raine", tags:["minecraft","nostalgic","chill"], color:"#8e44ad", label:"LR" },
+  { title:"Dragon Fight", query:"Dragon Fight C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","boss","intense","epic"], color:"#c0392b", label:"C418" },
+  { title:"Clark", query:"Clark C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill","lofi"], color:"#f39c12", label:"C418" },
+  { title:"Aria Math", query:"Aria Math C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","epic","ambiant"], color:"#16a085", label:"C418" },
+  { title:"Haggstrom", query:"Haggstrom C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill","nostalgic"], color:"#27ae60", label:"C418" },
+  { title:"Nether Boss", query:"Nether Boss C418", source:"Minecraft OST · C418", tags:["minecraft","boss","intense"], color:"#d35400", label:"C418" },
+  { title:"11", query:"11 disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","intense","boss"], color:"#ecf0f1", label:"11" },
+  { title:"13", query:"13 disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","ambiant","nostalgic"], color:"#bdc3c7", label:"13" },
+  { title:"Stal", query:"Stal disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill"], color:"#2980b9", label:"C418" },
+  { title:"Ward", query:"Ward disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","epic"], color:"#8e44ad", label:"C418" },
+  { title:"Mellohi", query:"Mellohi disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","nostalgic","chill"], color:"#e91e63", label:"C418" },
+  { title:"Chirp", query:"Chirp disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","chill","lofi"], color:"#f1c40f", label:"C418" },
+  { title:"Far", query:"Far disc C418 Minecraft", source:"Minecraft OST · C418", tags:["minecraft","nostalgic"], color:"#00bcd4", label:"C418" },
+  // Ajoute tes musiques ici !
+];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let currentTrack = null;
+let activeTag = 'all';
+let mcSearch = '';
+let vocalState = { guilds:{}, nowPlaying:{} };
+let selectedGuildId = null;
+let selectedChannelId = null;
+let pollInterval = null;
+
+// ═══════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════
+async function apiGet(path) {
+  const r = await fetch(API_URL + path, { headers:{'x-api-key':API_KEY} });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch(API_URL + path, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':API_KEY},
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════
+// VOCAL STATUS POLLING
+// ═══════════════════════════════════════════════════
+async function pollState() {
+  try {
+    const data = await apiGet('/state');
+    vocalState = data;
+    renderVocalBar(data);
+    renderNowPlaying(data);
+    updateChannelSelect(data);
+    document.getElementById('bot-status').innerHTML = '● <span style="color:var(--green)">Bot connecté</span>';
+  } catch {
+    document.getElementById('bot-status').innerHTML = '● <span style="color:var(--red-glow)">Bot hors ligne</span>';
+    document.getElementById('vocal-status').textContent = 'Bot hors ligne.';
+  }
+}
+
+function renderVocalBar(data) {
+  const container = document.getElementById('vocal-channels');
+  const guilds = Object.entries(data.guilds || {});
+  if (!guilds.length) { container.innerHTML='<span id="vocal-status">Aucun serveur.</span>'; return; }
+
+  let html = '';
+  for (const [gId, guild] of guilds) {
+    const np = data.nowPlaying?.[gId];
+    for (const ch of guild.channels) {
+      if (!ch.members.length) continue;
+      const lone = ch.members.length === 1;
+      const names = ch.members.map(m => m.username).join(', ');
+      html += `<div class="vocal-ch ${lone?'lone':'has-members'}" title="Cliquer pour jouer ici" onclick="selectChannel('${gId}','${ch.id}','${ch.name}')">`;
+      html += `<span class="ch-name">🔊 ${ch.name}</span><span class="ch-members">${names}</span>`;
+      if (lone) html += `<span style="color:var(--red-glow);font-size:13px;">SEUL</span>`;
+      html += `</div>`;
+    }
+    if (!guild.channels.some(c=>c.members.length)) {
+      html += `<span id="vocal-status">Personne en vocal sur ${guild.name}.</span>`;
+    }
+  }
+  container.innerHTML = html || '<span id="vocal-status">Personne en vocal.</span>';
+}
+
+function renderNowPlaying(data) {
+  const guilds = Object.entries(data.nowPlaying || {});
+  for (const [gId, track] of guilds) {
+    if (!track) continue;
+    const colors = ['#27ae60','#e74c3c','#9b59b6','#3498db','#e67e22'];
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    document.getElementById('np-disc').style.background = `radial-gradient(circle at 30% 30%, ${color}cc, ${color}44)`;
+    document.getElementById('np-disc').classList.add('spin');
+    document.getElementById('np-title').textContent = track.title;
+    document.getElementById('np-title').classList.add('running');
+    document.getElementById('np-cmd').innerHTML = `<code>m!play ${track.title}</code>`;
+    return;
+  }
+  document.getElementById('np-disc').classList.remove('spin');
+  document.getElementById('np-title').classList.remove('running');
+  document.getElementById('np-title').textContent = 'Aucune musique en cours...';
+  document.getElementById('np-cmd').innerHTML = '';
+}
+
+function updateChannelSelect(data) {
+  const sel = document.getElementById('channel-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">-- Choisir un salon vocal --</option>';
+  for (const [gId, guild] of Object.entries(data.guilds||{})) {
+    for (const ch of guild.channels) {
+      if (!ch.members.length) continue;
+      const opt = document.createElement('option');
+      opt.value = gId + '|' + ch.id;
+      opt.textContent = `${guild.name} › ${ch.name} (${ch.members.map(m=>m.username).join(', ')})`;
+      if (opt.value===prev) opt.selected=true;
+      sel.appendChild(opt);
+    }
+  }
+}
+
+function selectChannel(gId, chId, name) {
+  selectedGuildId = gId;
+  selectedChannelId = chId;
+  const sel = document.getElementById('channel-select');
+  sel.value = gId + '|' + chId;
+  showToast('Salon sélectionné : ' + name);
+}
+
+// ═══════════════════════════════════════════════════
+// PLAY
+// ═══════════════════════════════════════════════════
+async function playTrack(index) {
+  const track = TRACKS[index];
+  if (!track) return;
+  const { gId, chId } = getSelectedChannel();
+  if (!gId || !chId) { showToast('⚠ Sélectionne un salon vocal d\'abord !'); return; }
+  try {
+    await apiPost('/play', { guildId: gId, channelId: chId, trackName: track.query });
+    currentTrack = track;
+    renderGrid();
+    showToast('▶ ' + track.title);
+    copyToClipboard('m!play ' + track.query);
+  } catch { showToast('❌ Erreur API - mode offline : commande copiée !'); copyToClipboard('m!play '+track.query); }
+}
+
+async function doFreeSearch() {
+  const input = document.getElementById('free-search-input').value.trim();
+  if (!input) return;
+  const { gId, chId } = getSelectedChannel();
+  if (!gId || !chId) { showToast('⚠ Sélectionne un salon vocal d\'abord !'); return; }
+  try {
+    await apiPost('/play', { guildId: gId, channelId: chId, trackName: input });
+    showToast('▶ ' + input);
+    copyToClipboard('m!play ' + input);
+  } catch { copyToClipboard('m!play '+input); showToast('Commande copiée (mode offline)'); }
+}
+
+function getSelectedChannel() {
+  const sel = document.getElementById('channel-select').value;
+  if (sel.includes('|')) { const [g,c]=sel.split('|'); return {gId:g,chId:c}; }
+  return { gId: selectedGuildId, chId: selectedChannelId };
+}
+
+// ═══════════════════════════════════════════════════
+// GRID RENDER
+// ═══════════════════════════════════════════════════
+const COLORS = ['#27ae60','#e74c3c','#9b59b6','#3498db','#e67e22','#1abc9c','#e91e63','#00bcd4','#8bc34a','#ff9800','#607d8b','#f1c40f','#2c3e50'];
+
+function renderGrid() {
+  const grid = document.getElementById('track-grid');
+  const filtered = TRACKS.filter(t=>{
+    const matchTag = activeTag==='all' || t.tags.includes(activeTag);
+    const matchSearch = !mcSearch || t.title.toLowerCase().includes(mcSearch) || t.source.toLowerCase().includes(mcSearch);
+    return matchTag && matchSearch;
+  });
+  document.getElementById('count').textContent = filtered.length;
+  if (!filtered.length) { grid.innerHTML=''; document.getElementById('empty').style.display='block'; return; }
+  document.getElementById('empty').style.display='none';
+  grid.innerHTML = filtered.map((t,i)=>{
+    const gi = TRACKS.indexOf(t);
+    const col = t.color || COLORS[gi%COLORS.length];
+    const playing = currentTrack && currentTrack.title===t.title;
+    return `<div class="track-card${playing?' playing':''}" onclick="playTrack(${gi})">
+      <div class="card-shadow"></div>
+      <div class="card-disc">
+        <div class="disc-art${playing?' spin':''}">
+          <div class="disc-outer" style="background:radial-gradient(circle at 30% 30%,${col}cc,${col}44)"></div>
+          <div class="disc-grooves"></div>
+          <div class="disc-label-txt">${t.label||t.title.slice(0,3).toUpperCase()}</div>
+          <div class="disc-center"></div>
+        </div>
+        <span class="disc-num">#${String(gi+1).padStart(2,'0')}</span>
+      </div>
+      <div class="card-info">
+        <div class="card-title">${t.title}</div>
+        <div class="card-source">${t.source}</div>
+        <div class="card-tags">${t.tags.map(tg=>`<span class="tag ${tg}">${tg}</span>`).join('')}</div>
+        <div class="card-actions">
+          <button class="card-play">${playing?'▐▐ EN LECTURE':'▶ JOUER'}</button>
+          <button class="card-copy" onclick="copyCmd('${t.query}',event)">📋</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function copyCmd(query, e) {
+  e.stopPropagation();
+  copyToClipboard('m!play '+query);
+  showToast('Commande copiée !');
+}
+function copyToClipboard(text) {
+  if (navigator.clipboard) navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
+  else fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;opacity:0';
+  document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+}
+function showToast(msg) {
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+function filterTag(btn) {
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');activeTag=btn.dataset.tag;renderGrid();
+}
+function clearMcSearch(){document.getElementById('mc-search').value='';mcSearch='';renderGrid();}
+function switchTab(tab, btn) {
+  document.getElementById('tab-minecraft').style.display=tab==='minecraft'?'':'none';
+  document.getElementById('tab-search').style.display=tab==='search'?'':'none';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+document.getElementById('mc-search').addEventListener('input',function(){mcSearch=this.value.toLowerCase().trim();renderGrid();});
+document.getElementById('channel-select').addEventListener('change',function(){
+  const v=this.value;if(v.includes('|')){const[g,c]=v.split('|');selectedGuildId=g;selectedChannelId=c;}
+});
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+renderGrid();
+pollState();
+pollInterval = setInterval(pollState, 5000);
+</script>
+</body>
+</html>
